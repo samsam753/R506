@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TD1 - Exercices 1 et 2</title>
+    <!-- Import du style Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 10px; }
+        .data-container { display: flex; gap: 10px; margin-bottom: 10px; }
+        .box { border: 1px solid #ccc; padding: 10px; border-radius: 5px; flex: 1; background: #f9f9f9; font-size: 0.9em; }
+        #map { height: 65vh; border-radius: 5px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h2>TD 1 : Géolocalisation & Leaflet</h2>
+    
+    <!-- Partie EXERCICE 1 : Affichage des données -->
+    <div class="data-container">
+        <div class="box">
+            <h4>getCurrentPosition (Instantané)</h4>
+            <div id="current-data">Recherche en cours....</div>
+        </div>
+        <div class="box">
+            <h4>watchPosition (Suivi) & Distance</h4>
+            <div id="watch-data">Recherche en cours....</div>
+            <hr>
+            <div id="distance-info">Distance avec Marseille : calcul en cours....</div>
+        </div>
+    </div>
+
+
+
+    <!-- Partie EXERCICE 2 : Carte Leaflet -->
+    <div id="map"></div>
+
+    <script>
+        // INITIALISATION DE LA CARTE (Exo 2)
+        const niceCoords = [43.7102, 7.2620];
+        const marseilleCoords = [43.2965, 5.3698];
+        const bermudaCoords = [[25.774, -80.190], [18.466, -66.118], [32.321, -64.757]];
+
+        const map = L.map('map').setView(niceCoords, 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+        L.marker(niceCoords).addTo(map).bindPopup("Nice");
+        L.polygon(bermudaCoords, {color: 'red', fillColor: '#f03', fillOpacity: 0.5}).addTo(map).bindPopup("Triangle des Bermudes");
+        L.polyline([marseilleCoords, niceCoords], {color: 'blue'}).addTo(map).bindPopup("Trajet Marseille - Nice");
+
+        let myMarker, myCircle;
+
+        // FONCTION DE FORMATAGE TEXTE (Exo 1) 
+        function formatPosition(pos) {
+            const c = pos.coords;
+            const date = new Date(pos.timestamp).toLocaleTimeString();
+            return `Lon: ${c.longitude.toFixed(5)} | Lat: ${c.latitude.toFixed(5)} <br>
+                    Alt: ${c.altitude ? c.altitude + 'm' : 'N/A'} | Précision: ${c.accuracy.toFixed(1)}m <br>
+                    Vitesse: ${c.speed ? c.speed + 'm/s' : 'N/A'} | Heure: ${date}`;
+        }
+
+        // GÉOLOCALISATION (Exo 1 & 2 combinés)
+        if (navigator.geolocation) {
+            // Méthode 1 : getCurrentPosition
+            navigator.geolocation.getCurrentPosition(
+                pos => { document.getElementById("current-data").innerHTML = formatPosition(pos); },
+                err => { document.getElementById("current-data").innerHTML = "Erreur : " + err.message; },
+                { enableHighAccuracy: true }
+            );
+
+            // Méthode 2 : watchPosition
+            navigator.geolocation.watchPosition(
+                pos => { 
+                    document.getElementById("watch-data").innerHTML = formatPosition(pos);
+                    
+                    const myCoords = [pos.coords.latitude, pos.coords.longitude];
+                    
+                    // Mise à jour de la carte (Marqueur et Cercle de précision)
+                    if(myMarker) { map.removeLayer(myMarker); }
+                    if(myCircle) { map.removeLayer(myCircle); }
+
+                    myMarker = L.marker(myCoords).addTo(map).bindPopup("Vous êtes ici !");
+                    myCircle = L.circle(myCoords, { radius: pos.coords.accuracy, color: 'green', fillOpacity: 0.2 }).addTo(map);
+                    
+                    map.setView(myCoords, 12); // Centrer sur la position
+
+                    // Distance avec Marseille
+                    const dist = (map.distance(myCoords, marseilleCoords) / 1000).toFixed(2);
+                    document.getElementById("distance-info").innerHTML = `Distance avec Marseille : <strong>${dist} km</strong>`;
+                },
+                err => { document.getElementById("watch-data").innerHTML = "Erreur : " + err.message; },
+                { enableHighAccuracy: true }
+            );
+        } else {
+            alert("Géolocalisation non supportée.");
+        }
+    </script>
+</body>
+</html>
